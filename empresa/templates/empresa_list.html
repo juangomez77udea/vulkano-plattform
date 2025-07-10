@@ -1,0 +1,152 @@
+{% extends 'index.html' %}
+
+{% block breadcrumb %}
+  {% include 'breadcrumb.html' with home='/' breadcrumbs=breadcrumb_items %}
+{% endblock %}
+{% block content %}
+  <div class="max-w-5xl mx-auto mt-6 bg-white p-6 rounded shadow">
+    <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
+      <h2 class="text-xl font-bold text-gray-800">Empresas registradas</h2>
+    
+      <div class="flex flex-col sm:flex-row gap-2 items-center">
+        <form id="filtersForm" class="flex flex-wrap gap-2">
+          <!-- Select Estado -->
+          <select name="estado" onchange="document.getElementById('filtersForm').submit()" class="text-sm p-1.5 border border-gray-300 rounded">
+            <option value="">Estado</option>
+            {% for value, label in estados %}
+            <option value="{{ value }}" {% if request.GET.estado == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+    
+          <!-- Select Departamento -->
+          <select name="departamento" onchange="document.getElementById('filtersForm').submit()" class="text-sm p-1.5 border border-gray-300 rounded">
+            <option value="">Departamento</option>
+            {% for dep in departamentos %}
+            {% if dep %}
+            <option value="{{ dep }}" {% if request.GET.departamento == dep %}selected{% endif %}>{{ dep }}</option>
+            {% endif %}
+            {% endfor %}
+          </select>
+    
+          <!-- Select Ciudad -->
+          <select name="ciudad" onchange="document.getElementById('filtersForm').submit()" class="text-sm p-1.5 border border-gray-300 rounded">
+            <option value="">Ciudad</option>
+            {% for ciudad in ciudades %}
+            {% if ciudad %}
+            <option value="{{ ciudad }}" {% if request.GET.ciudad == ciudad %}selected{% endif %}>{{ ciudad }}</option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </form>
+    
+        <div class="flex gap-2 items-center">
+          <select id="tipo-exportacion" class="px-3 py-1.5 text-sm border rounded">
+            <option value="" disabled selected>Formato</option>
+            <option value="csv">CSV</option>
+            <option value="excel">Excel</option>
+            <option value="txt">TXT</option>
+          </select>
+        
+          <button onclick="confirmarExportacion()" class="bg-green-600 text-white px-3 py-1.5 text-sm rounded hover:bg-green-700 transition">
+            Exportar
+          </button>
+    
+          <a href="{% url 'crear_empresa' %}" class="bg-[var(--primary-color)] text-white px-3 py-1.5 text-sm rounded hover:bg-blue-700 transition">
+            Nueva Empresa
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulario de búsqueda -->
+    <form method="get" class="mb-3">
+      <input type="text" name="q" placeholder="Buscar por nombre, NIT, dirección, ciudad o estado" value="{{ request.GET.q }}" class="w-full text-sm p-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]" />
+    </form>
+
+    {% if object_list %}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for empresa in object_list %}
+          <div class="border rounded shadow-sm p-4 hover:shadow-lg transition">
+            <div class="mb-2 flex justify-between items-center">
+              <h3 class="font-bold text-gray-700">{{ empresa.nombre }}</h3>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full 
+          {% if empresa.estado == 'activo' %}                
+            bg-green-100 text-green-700
+                {% else %}                               
+            bg-red-100 text-red-700
+                {% endif %}
+        ">
+                {{ empresa.get_estado_display }}
+              </span>
+            </div>
+            <p class="text-sm text-gray-500">
+              <strong>NIT:</strong> {{ empresa.nit }}
+            </p>
+            <p class="text-sm text-gray-500">
+              <strong>Ciudad:</strong> {{ empresa.ciudad }}
+            </p>
+            <p class="text-sm text-gray-500">
+              <strong>Dirección:</strong> {{ empresa.direccion }}
+            </p>
+            <p class="text-sm text-gray-500"><strong>Departamento:</strong> {{ empresa.departamento }}</p>
+            <p class="text-sm text-gray-500">
+              <strong>Teléfono:</strong> {{ empresa.telefono }}
+            </p>
+            <div class="mt-1">
+              <a href="{% url 'editar_empresa' empresa.id %}" class="text-sm font-medium text-[var(--primary-color)] hover:underline"><i class="ph ph-pencil-simple mr-1"></i>Editar</a>
+            </div>
+
+            <div class="flex flex-col gap-1 mt-2">
+              <a href="{% url 'sucursales_por_empresa' empresa.id %}" class="text-sm font-medium text-[var(--primary-color)] hover:underline">
+                <i class="ph ph-buildings mr-1 mt-0 p-0"></i>Ver sucursales
+              </a>
+            </div>            
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-600">No hay empresas registradas.</p>
+    {% endif %}
+
+    <!-- Paginación -->
+    <div class="mt-4 flex justify-end text-xs">
+      {% if page_obj.has_previous %}
+        <a href="?page=1" class="px-3 py-1 bg-gray-300 rounded">primero</a>
+        <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 bg-gray-300 rounded">anterior</a>
+      {% endif %}
+
+      <span class="mx-2">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 bg-gray-300 rounded">siguiente</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}" class="px-3 py-1 bg-gray-300 rounded">último</a>
+      {% endif %}
+    </div>
+  </div>
+  <script>
+    function confirmarExportacion() {
+      const tipo = document.getElementById('tipo-exportacion').value;
+  
+      if (!tipo) {
+        alert("Por favor selecciona un formato para exportar.");
+        return;
+      }
+  
+      const formatos = {
+        csv: "CSV",
+        excel: "Excel",
+        txt: "TXT"
+      };
+  
+      const confirmar = confirm(`¿Deseas exportar las empresas en formato ${formatos[tipo]}?`);
+  
+      if (confirmar) {
+        const params = new URLSearchParams(window.location.search);
+        params.set('tipo', tipo);
+  
+        const url = `{% url 'exportar_empresas' %}?` + params.toString();
+        window.location.href = url;
+      }
+    }
+  </script>
+{% endblock %}
